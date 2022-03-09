@@ -5,6 +5,19 @@ import (
 	"time"
 )
 
+func TestAfterFuncSync(t *testing.T) {
+	c := make(chan struct{})
+
+	setOk := func() {
+		close(c)
+	}
+
+	tt := AfterFuncSync(time.Millisecond, setOk)
+	defer tt.Stop()
+
+	<-c
+}
+
 func BenchmarkTimeNow(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = time.Now()

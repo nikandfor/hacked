@@ -2,7 +2,28 @@ package time
 
 import (
 	"time"
+	"unsafe"
 	_ "unsafe"
+)
+
+type (
+	timer struct {
+		C <-chan time.Time
+		r runtimeTimer
+	}
+
+	// Interface to timers implemented in package runtime.
+	// Must be in sync with ../runtime/time.go:/^type timer
+	runtimeTimer struct {
+		pp       uintptr
+		when     int64
+		period   int64
+		f        func(interface{}, uintptr) // NOTE: must not be closure
+		arg      interface{}
+		seq      uintptr
+		nextwhen int64
+		status   uint32
+	}
 )
 
 //go:linkname Now time.now
@@ -28,6 +49,24 @@ func DateClock(t time.Time) (year, month, day, hour, min, sec int) { //nolint:go
 	return
 }
 
+func AfterFuncSync(d time.Duration, f func()) *time.Timer {
+	t := &timer{
+		r: runtimeTimer{
+			when: when(d),
+			f:    doSync,
+			arg:  f,
+		},
+	}
+
+	startTimer(&t.r)
+
+	return (*time.Timer)(unsafe.Pointer(t))
+}
+
+func doSync(arg interface{}, seq uintptr) {
+	arg.(func())()
+}
+
 //go:linkname timeAbs time.Time.abs
 func timeAbs(time.Time) uint64
 
@@ -36,3 +75,9 @@ func absClock(uint64) (hour, min, sec int)
 
 //go:linkname absDate time.absDate
 func absDate(uint64, bool) (year, month, day, yday int)
+
+//go:linkname startTimer time.startTimer
+func startTimer(*runtimeTimer)
+
+//go:linkname when time.when
+func when(time.Duration) int64
