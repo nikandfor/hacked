@@ -1,4 +1,4 @@
-package fmt
+package hfmt
 
 import (
 	"bytes"
