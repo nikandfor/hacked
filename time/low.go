@@ -49,7 +49,7 @@ func DateClock(t time.Time) (year, month, day, hour, min, sec int) { //nolint:go
 	return
 }
 
-func AfterFuncSync(d time.Duration, f func()) *time.Timer {
+func NewTimerFunc(d time.Duration, f func()) *time.Timer {
 	t := &timer{
 		r: runtimeTimer{
 			when: when(d),
@@ -62,6 +62,10 @@ func AfterFuncSync(d time.Duration, f func()) *time.Timer {
 
 	return (*time.Timer)(unsafe.Pointer(t))
 }
+
+//go:linkname AfterFuncSync NewTimerFunc
+
+func AfterFuncSync(d time.Duration, f func()) *time.Timer
 
 func doSync(arg interface{}, seq uintptr) {
 	arg.(func())()
