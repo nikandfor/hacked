@@ -82,11 +82,11 @@ func init() {
 	fmt.Fprintf(io.Discard, "%v", formatter{})
 }
 
-// AppendPrintf is similar to fmt.Fprintf but a little bit hacked.
+// Appendf is similar to fmt.Fprintf but a little bit hacked.
 //
 // There is no sync.Pool.Get and Put. There is no copying buffer to io.Writer or conversion to string. There is no io.Writer interface dereference.
 // All that gives advantage about 30-50 ns per call. Yes, I know :).
-func AppendPrintf(b []byte, format string, a ...interface{}) []byte {
+func Appendf(b []byte, format string, a ...interface{}) []byte {
 	var p pp
 	p.buf = b
 	p.fmt.buf = &p.buf
@@ -95,8 +95,8 @@ func AppendPrintf(b []byte, format string, a ...interface{}) []byte {
 	return b
 }
 
-// AppendPrintln is similar to fmt.Sprintln but faster. See doc for AppendPrintf for more details.
-func AppendPrintln(b []byte, a ...interface{}) []byte {
+// Appendln is similar to fmt.Sprintln but faster. See doc for Appendf for more details.
+func Appendln(b []byte, a ...interface{}) []byte {
 	var p pp
 	p.buf = b
 	p.fmt.buf = &p.buf
@@ -105,8 +105,8 @@ func AppendPrintln(b []byte, a ...interface{}) []byte {
 	return b
 }
 
-// AppendPrint is similar to fmt.Sprint but faster. See doc for AppendPrintf for more details.
-func AppendPrint(b []byte, a ...interface{}) []byte {
+// Append is similar to fmt.Sprint but faster. See doc for Appendf for more details.
+func Append(b []byte, a ...interface{}) []byte {
 	var p pp
 	p.buf = b
 	p.fmt.buf = &p.buf

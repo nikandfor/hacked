@@ -12,7 +12,7 @@ func TestAfterFuncSync(t *testing.T) {
 		close(c)
 	}
 
-	tt := AfterFuncSync(time.Millisecond, setOk)
+	tt := NewTimerSync(time.Millisecond, setOk)
 	defer tt.Stop()
 
 	<-c
