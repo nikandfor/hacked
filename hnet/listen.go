@@ -52,7 +52,18 @@ func Accept(ctx context.Context, l net.Listener) (net.Conn, error) {
 		_ = d.SetDeadline(time.Unix(1, 0))
 	}()
 
-	return l.Accept()
+	c, err := l.Accept()
+	if c != nil || !isTimeout(err) {
+		return c, err
+	}
+
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+	default:
+	}
+
+	return nil, err
 }
 
 func Read(ctx context.Context, r io.Reader, p []byte) (int, error) {
@@ -77,7 +88,17 @@ func Read(ctx context.Context, r io.Reader, p []byte) (int, error) {
 		_ = d.SetReadDeadline(time.Unix(1, 0))
 	}()
 
-	return r.Read(p)
+	n, err := r.Read(p)
+
+	if isTimeout(err) {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	return n, err
 }
 
 func ReadFrom(ctx context.Context, r ReaderFrom, p []byte) (int, net.Addr, error) {
@@ -102,7 +123,17 @@ func ReadFrom(ctx context.Context, r ReaderFrom, p []byte) (int, net.Addr, error
 		_ = d.SetReadDeadline(time.Unix(1, 0))
 	}()
 
-	return r.ReadFrom(p)
+	n, addr, err := r.ReadFrom(p)
+
+	if isTimeout(err) {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	return n, addr, err
 }
 
 func ReadFromUDP(ctx context.Context, r ReaderFromUDP, p []byte) (int, *net.UDPAddr, error) {
@@ -127,7 +158,17 @@ func ReadFromUDP(ctx context.Context, r ReaderFromUDP, p []byte) (int, *net.UDPA
 		_ = d.SetReadDeadline(time.Unix(1, 0))
 	}()
 
-	return r.ReadFromUDP(p)
+	n, addr, err := r.ReadFromUDP(p)
+
+	if isTimeout(err) {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	return n, addr, err
 }
 
 func ReadFromUDPAddrPort(ctx context.Context, r ReaderFromUDPAddrPort, p []byte) (int, netip.AddrPort, error) {
@@ -152,7 +193,17 @@ func ReadFromUDPAddrPort(ctx context.Context, r ReaderFromUDPAddrPort, p []byte)
 		_ = d.SetReadDeadline(time.Unix(1, 0))
 	}()
 
-	return r.ReadFromUDPAddrPort(p)
+	n, addr, err := r.ReadFromUDPAddrPort(p)
+
+	if isTimeout(err) {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	return n, addr, err
 }
 
 func ReadMsgUDP(ctx context.Context, r ReaderMsgUDP, p, oob []byte) (n, oobn, flags int, addr *net.UDPAddr, err error) {
@@ -177,7 +228,17 @@ func ReadMsgUDP(ctx context.Context, r ReaderMsgUDP, p, oob []byte) (n, oobn, fl
 		_ = d.SetReadDeadline(time.Unix(1, 0))
 	}()
 
-	return r.ReadMsgUDP(p, oob)
+	n, oobn, flags, addr, err = r.ReadMsgUDP(p, oob)
+
+	if isTimeout(err) {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	return
 }
 
 func ReadMsgUDPAddrPort(ctx context.Context, r ReaderMsgUDPAddrPort, p, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
@@ -202,5 +263,21 @@ func ReadMsgUDPAddrPort(ctx context.Context, r ReaderMsgUDPAddrPort, p, oob []by
 		_ = d.SetReadDeadline(time.Unix(1, 0))
 	}()
 
-	return r.ReadMsgUDPAddrPort(p, oob)
+	n, oobn, flags, addr, err = r.ReadMsgUDPAddrPort(p, oob)
+
+	if isTimeout(err) {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+		default:
+		}
+	}
+
+	return
+}
+
+func isTimeout(err error) bool {
+	to, ok := err.(interface{ Timeout() bool })
+
+	return ok && to.Timeout()
 }
