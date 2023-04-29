@@ -18,6 +18,20 @@ func TestAfterFuncSync(t *testing.T) {
 	<-c
 }
 
+func TestMonotomicOf(t *testing.T) {
+	now := time.Now()
+
+	m := MonotonicOf(now)
+	if m == 0 {
+		t.Errorf("expected monotonic clock")
+	}
+
+	m = MonotonicOf(now.Truncate(-1))
+	if m != 0 {
+		t.Errorf("expected monotonic clock to be truncated")
+	}
+}
+
 func BenchmarkTimeNow(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = time.Now()
@@ -56,5 +70,21 @@ func BenchmarkDateClock(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_, _, _, _, _, _ = DateClock(t)
+	}
+}
+
+func BenchmarkMonotonicOf(b *testing.B) {
+	now := time.Now()
+
+	for i := 0; i < b.N; i++ {
+		_ = MonotonicOf(now)
+	}
+}
+
+func BenchmarkMono(b *testing.B) {
+	now := time.Now()
+
+	for i := 0; i < b.N; i++ {
+		_ = mono(&now)
 	}
 }

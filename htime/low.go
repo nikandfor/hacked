@@ -41,6 +41,10 @@ func Monotonic() (c int64) {
 	return
 }
 
+func MonotonicOf(t time.Time) int64 {
+	return mono(&t)
+}
+
 // DateClock is faster version of t.Date(); t.Clock().
 func DateClock(t time.Time) (year, month, day, hour, min, sec int) { //nolint:gocritic
 	u := timeAbs(t)
@@ -75,6 +79,10 @@ func absClock(uint64) (hour, min, sec int)
 
 //go:linkname absDate time.absDate
 func absDate(uint64, bool) (year, month, day, yday int)
+
+//go:noescape
+//go:linkname mono time.(*Time).mono
+func mono(*time.Time) int64
 
 //go:linkname startTimer time.startTimer
 func startTimer(*runtimeTimer)
