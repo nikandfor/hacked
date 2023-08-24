@@ -9,6 +9,11 @@ import (
 )
 
 type (
+	StoppableListener struct {
+		context.Context
+		net.Listener
+	}
+
 	StoppableConn struct {
 		context.Context
 		net.Conn
@@ -243,6 +248,17 @@ func ReadMsgUDPAddrPort(ctx context.Context, r ReaderMsgUDPAddrPort, p, oob []by
 	err = fixError(ctx, err)
 
 	return
+}
+
+func NewStoppableListener(ctx context.Context, l net.Listener) net.Listener {
+	return StoppableListener{
+		Context:  ctx,
+		Listener: l,
+	}
+}
+
+func (l StoppableListener) Accept() (net.Conn, error) {
+	return Accept(l.Context, l.Listener)
 }
 
 func NewStoppableConn(ctx context.Context, c net.Conn) net.Conn {
