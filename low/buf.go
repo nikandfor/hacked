@@ -19,11 +19,39 @@ func (w *Buf) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+func (w *Buf) WriteAt(p []byte, off int64) (int, error) {
+	if int(off)+len(p) <= len(*w) {
+		return copy((*w)[off:], p), nil
+	}
+
+	for cap(*w) < int(off) {
+		*w = append((*w)[:cap(*w)], 0, 0, 0, 0, 0, 0, 0, 0)
+	}
+
+	*w = (*w)[:off]
+	*w = append(*w, p...)
+
+	return len(p), nil
+}
+
 func (w *Buf) NewLine() {
 	l := len(*w)
 	if l == 0 || (*w)[l-1] != '\n' {
 		*w = append(*w, '\n')
 	}
+}
+
+func (w Buf) ReadAt(p []byte, off int64) (int, error) {
+	if off >= int64(len(w)) {
+		return 0, io.EOF
+	}
+
+	n := copy(p, w[off:])
+	if n < len(p) {
+		return n, io.EOF
+	}
+
+	return n, nil
 }
 
 func (w *Buf) Reset()        { *w = (*w)[:0] }
