@@ -44,34 +44,18 @@ func Accept(ctx context.Context, l net.Listener) (net.Conn, error) {
 	d, ok := l.(interface {
 		SetDeadline(time.Time) error
 	})
-
 	if !ok {
 		return l.Accept()
 	}
 
-	stopc := make(chan struct{})
-	defer close(stopc)
-
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-stopc:
-			return
-		}
-
-		_ = d.SetDeadline(time.Unix(1, 0))
-	}()
+	defer Stopper(ctx, d.SetDeadline)()
 
 	c, err := l.Accept()
-	if c != nil || !isTimeout(err) {
+	if c != nil {
 		return c, err
 	}
 
-	select {
-	case <-ctx.Done():
-		err = ctx.Err()
-	default:
-	}
+	err = FixError(ctx, err)
 
 	return nil, err
 }
@@ -80,27 +64,14 @@ func Read(ctx context.Context, r io.Reader, p []byte) (int, error) {
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
 	})
-
 	if !ok {
 		return r.Read(p)
 	}
 
-	stopc := make(chan struct{})
-	defer close(stopc)
-
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-stopc:
-			return
-		}
-
-		_ = d.SetReadDeadline(time.Unix(1, 0))
-	}()
+	defer Stopper(ctx, d.SetReadDeadline)()
 
 	n, err := r.Read(p)
-
-	err = fixError(ctx, err)
+	err = FixError(ctx, err)
 
 	return n, err
 }
@@ -109,27 +80,14 @@ func ReadFrom(ctx context.Context, r ReaderFrom, p []byte) (int, net.Addr, error
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
 	})
-
 	if !ok {
 		return r.ReadFrom(p)
 	}
 
-	stopc := make(chan struct{})
-	defer close(stopc)
-
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-stopc:
-			return
-		}
-
-		_ = d.SetReadDeadline(time.Unix(1, 0))
-	}()
+	defer Stopper(ctx, d.SetReadDeadline)()
 
 	n, addr, err := r.ReadFrom(p)
-
-	err = fixError(ctx, err)
+	err = FixError(ctx, err)
 
 	return n, addr, err
 }
@@ -138,27 +96,14 @@ func ReadFromUDP(ctx context.Context, r ReaderFromUDP, p []byte) (int, *net.UDPA
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
 	})
-
 	if !ok {
 		return r.ReadFromUDP(p)
 	}
 
-	stopc := make(chan struct{})
-	defer close(stopc)
-
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-stopc:
-			return
-		}
-
-		_ = d.SetReadDeadline(time.Unix(1, 0))
-	}()
+	defer Stopper(ctx, d.SetReadDeadline)()
 
 	n, addr, err := r.ReadFromUDP(p)
-
-	err = fixError(ctx, err)
+	err = FixError(ctx, err)
 
 	return n, addr, err
 }
@@ -167,27 +112,14 @@ func ReadFromUDPAddrPort(ctx context.Context, r ReaderFromUDPAddrPort, p []byte)
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
 	})
-
 	if !ok {
 		return r.ReadFromUDPAddrPort(p)
 	}
 
-	stopc := make(chan struct{})
-	defer close(stopc)
-
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-stopc:
-			return
-		}
-
-		_ = d.SetReadDeadline(time.Unix(1, 0))
-	}()
+	defer Stopper(ctx, d.SetReadDeadline)()
 
 	n, addr, err := r.ReadFromUDPAddrPort(p)
-
-	err = fixError(ctx, err)
+	err = FixError(ctx, err)
 
 	return n, addr, err
 }
@@ -196,27 +128,14 @@ func ReadMsgUDP(ctx context.Context, r ReaderMsgUDP, p, oob []byte) (n, oobn, fl
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
 	})
-
 	if !ok {
 		return r.ReadMsgUDP(p, oob)
 	}
 
-	stopc := make(chan struct{})
-	defer close(stopc)
-
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-stopc:
-			return
-		}
-
-		_ = d.SetReadDeadline(time.Unix(1, 0))
-	}()
+	defer Stopper(ctx, d.SetReadDeadline)()
 
 	n, oobn, flags, addr, err = r.ReadMsgUDP(p, oob)
-
-	err = fixError(ctx, err)
+	err = FixError(ctx, err)
 
 	return
 }
@@ -225,27 +144,14 @@ func ReadMsgUDPAddrPort(ctx context.Context, r ReaderMsgUDPAddrPort, p, oob []by
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
 	})
-
 	if !ok {
 		return r.ReadMsgUDPAddrPort(p, oob)
 	}
 
-	stopc := make(chan struct{})
-	defer close(stopc)
-
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-stopc:
-			return
-		}
-
-		_ = d.SetReadDeadline(time.Unix(1, 0))
-	}()
+	defer Stopper(ctx, d.SetReadDeadline)()
 
 	n, oobn, flags, addr, err = r.ReadMsgUDPAddrPort(p, oob)
-
-	err = fixError(ctx, err)
+	err = FixError(ctx, err)
 
 	return
 }
@@ -269,24 +175,24 @@ func NewStoppableConn(ctx context.Context, c net.Conn) net.Conn {
 }
 
 func (c StoppableConn) Read(p []byte) (n int, err error) {
-	defer stopper(c.Context, c.Conn.SetReadDeadline)()
+	defer Stopper(c.Context, c.Conn.SetReadDeadline)()
 
 	n, err = c.Conn.Read(p)
-	err = fixError(c.Context, err)
+	err = FixError(c.Context, err)
 
 	return
 }
 
 func (c StoppableConn) Write(p []byte) (n int, err error) {
-	defer stopper(c.Context, c.Conn.SetWriteDeadline)()
+	defer Stopper(c.Context, c.Conn.SetWriteDeadline)()
 
 	n, err = c.Conn.Write(p)
-	err = fixError(c.Context, err)
+	err = FixError(c.Context, err)
 
 	return
 }
 
-func stopper(ctx context.Context, dead func(time.Time) error) func() {
+func Stopper(ctx context.Context, dead func(time.Time) error) func() {
 	donec := make(chan struct{})
 
 	go func() {
@@ -310,7 +216,7 @@ func isTimeout(err error) bool {
 	return ok && to.Timeout()
 }
 
-func fixError(ctx context.Context, err error) error {
+func FixError(ctx context.Context, err error) error {
 	if isTimeout(err) {
 		select {
 		case <-ctx.Done():
