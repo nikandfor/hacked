@@ -8,7 +8,7 @@ import (
 	"unsafe"
 )
 
-//nolint
+// nolint
 type (
 	iface struct {
 		typ, word unsafe.Pointer
@@ -87,73 +87,51 @@ func init() {
 // There is no sync.Pool.Get and Put. There is no copying buffer to io.Writer or conversion to string. There is no io.Writer interface dereference.
 // All that gives advantage about 30-50 ns per call. Yes, I know :).
 func Appendf(b []byte, format string, a ...interface{}) []byte {
-	var p pp
-	p.buf = b
-	p.fmt.buf = &p.buf
-	doPrintf(&p, format, a)
-	b = *(*[]byte)(noescape(unsafe.Pointer(&p.buf)))
-	return b
+	return fmt.Appendf(b, format, a...)
 }
 
 // Appendln is similar to fmt.Sprintln but faster. See doc for Appendf for more details.
 func Appendln(b []byte, a ...interface{}) []byte {
-	var p pp
-	p.buf = b
-	p.fmt.buf = &p.buf
-	doPrintln(&p, a)
-	b = *(*[]byte)(noescape(unsafe.Pointer(&p.buf)))
-	return b
+	return fmt.Appendln(b, a...)
 }
 
 // Append is similar to fmt.Sprint but faster. See doc for Appendf for more details.
 func Append(b []byte, a ...interface{}) []byte {
-	var p pp
-	p.buf = b
-	p.fmt.buf = &p.buf
-	doPrint(&p, a)
-	b = *(*[]byte)(noescape(unsafe.Pointer(&p.buf)))
-	return b
+	return fmt.Append(b, a...)
 }
 
 func PrintArg(s fmt.State, arg interface{}, verb rune) {
-	i := *(*iface)(unsafe.Pointer(&s))
-	if i.typ != ppType {
-		var buf [64]byte
+	var buf [64]byte
 
-		i := 0
+	i := 0
 
-		buf[i] = '%'
-		i++
+	buf[i] = '%'
+	i++
 
-		for _, f := range "-+# 0" {
-			if s.Flag(int(f)) {
-				buf[i] = byte(f)
-				i++
-			}
-		}
-
-		if w, ok := s.Width(); ok {
-			q := strconv.AppendInt(buf[:i], int64(w), 10)
-			i = len(q)
-		}
-
-		if p, ok := s.Precision(); ok {
-			buf[i] = '.'
+	for _, f := range "-+# 0" {
+		if s.Flag(int(f)) {
+			buf[i] = byte(f)
 			i++
-
-			q := strconv.AppendInt(buf[:i], int64(p), 10)
-			i = len(q)
 		}
-
-		buf[i] = byte(verb)
-		i++
-
-		fmt.Fprintf(s, bytesToString(buf[:i]), arg)
-
-		return
 	}
 
-	printArg(i.word, arg, verb)
+	if w, ok := s.Width(); ok {
+		q := strconv.AppendInt(buf[:i], int64(w), 10)
+		i = len(q)
+	}
+
+	if p, ok := s.Precision(); ok {
+		buf[i] = '.'
+		i++
+
+		q := strconv.AppendInt(buf[:i], int64(p), 10)
+		i = len(q)
+	}
+
+	buf[i] = byte(verb)
+	i++
+
+	fmt.Fprintf(s, bytesToString(buf[:i]), arg)
 }
 
 //go:linkname doPrintf fmt.(*pp).doPrintf
@@ -191,6 +169,7 @@ func (formatter) Format(s fmt.State, c rune) {
 // output depends on the input.  noescape is inlined and currently
 // compiles down to zero instructions.
 // USE CAREFULLY!
+//
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)

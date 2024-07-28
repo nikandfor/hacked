@@ -2,28 +2,7 @@ package htime
 
 import (
 	"time"
-	"unsafe"
 	_ "unsafe"
-)
-
-type (
-	timer struct {
-		C <-chan time.Time
-		r runtimeTimer
-	}
-
-	// Interface to timers implemented in package runtime.
-	// Must be in sync with ../runtime/time.go:/^type timer
-	runtimeTimer struct {
-		pp       uintptr
-		when     int64
-		period   int64
-		f        func(interface{}, uintptr) // NOTE: must not be closure
-		arg      interface{}
-		seq      uintptr
-		nextwhen int64
-		status   uint32
-	}
 )
 
 //go:linkname Now time.now
@@ -53,24 +32,6 @@ func DateClock(t time.Time) (year, month, day, hour, min, sec int) { //nolint:go
 	return
 }
 
-func NewTimerSync(d time.Duration, f func()) *time.Timer {
-	t := &timer{
-		r: runtimeTimer{
-			when: when(d),
-			f:    doSync,
-			arg:  f,
-		},
-	}
-
-	startTimer(&t.r)
-
-	return (*time.Timer)(unsafe.Pointer(t))
-}
-
-func doSync(arg interface{}, seq uintptr) {
-	arg.(func())()
-}
-
 //go:linkname timeAbs time.Time.abs
 func timeAbs(time.Time) uint64
 
@@ -85,7 +46,27 @@ func absDate(uint64, bool) (year, month, day, yday int)
 func mono(*time.Time) int64
 
 //go:linkname startTimer time.startTimer
-func startTimer(*runtimeTimer)
+//func startTimer(*runtimeTimer)
 
-//go:linkname when time.when
-func when(time.Duration) int64
+////go:linkname when time.when
+//func when(time.Duration) int64
+
+//go:linkname runtimeNano runtime.nanotime
+func runtimeNano() int64
+
+// when is a helper function for setting the 'when' field of a runtimeTimer.
+// It returns what the time will be, in nanoseconds, Duration d in the future.
+// If d is negative, it is ignored. If the returned value would be less than
+// zero because of an overflow, MaxInt64 is returned.
+func when(d time.Duration) int64 {
+	if d <= 0 {
+		return runtimeNano()
+	}
+	t := runtimeNano() + int64(d)
+	if t < 0 {
+		// N.B. runtimeNano() and d are always positive, so addition
+		// (including overflow) will never result in t == 0.
+		t = 1<<63 - 1 // math.MaxInt64
+	}
+	return t
+}

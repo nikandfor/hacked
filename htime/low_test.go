@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+/*
 func TestAfterFuncSync(t *testing.T) {
 	c := make(chan struct{})
 
@@ -17,6 +18,7 @@ func TestAfterFuncSync(t *testing.T) {
 
 	<-c
 }
+*/
 
 func TestMonotomicOf(t *testing.T) {
 	now := time.Now()
