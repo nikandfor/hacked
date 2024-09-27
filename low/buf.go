@@ -1,16 +1,14 @@
 package low
 
-import "io"
+import (
+	"errors"
+	"io"
+)
 
 const Spaces = "                                                                                                                                "
 
 type (
 	Buf []byte
-
-	BufReader struct {
-		Buf
-		R int
-	}
 )
 
 func (w *Buf) Write(p []byte) (int, error) {
@@ -34,6 +32,30 @@ func (w *Buf) WriteAt(p []byte, off int64) (int, error) {
 	return len(p), nil
 }
 
+func (w *Buf) ReadFrom(r io.Reader) (int64, error) {
+	if wt, ok := r.(io.WriterTo); ok {
+		return wt.WriteTo(w)
+	}
+
+	st := len(*w)
+	end := 0
+
+	for {
+		*w = append((*w)[:end], make([]byte, 512)...)
+
+		n, err := r.Read((*w)[end:cap(*w)])
+		end += n
+		*w = (*w)[:end]
+
+		if errors.Is(err, io.EOF) {
+			return int64(end - st), nil
+		}
+		if err != nil {
+			return int64(end - st), err
+		}
+	}
+}
+
 func (w *Buf) NewLine() {
 	l := len(*w)
 	if l == 0 || (*w)[l-1] != '\n' {
@@ -54,23 +76,7 @@ func (w Buf) ReadAt(p []byte, off int64) (int, error) {
 	return n, nil
 }
 
-func (w *Buf) Reset()        { *w = (*w)[:0] }
-func (w *Buf) Len() int      { return len(*w) }
-func (w *Buf) LenF() float64 { return float64(w.Len()) }
-func (w *Buf) Bytes() []byte { return *w }
-
-func (r *BufReader) Read(p []byte) (n int, err error) {
-	n = copy(p, r.Buf[r.R:])
-	r.R += n
-
-	if r.R == len(r.Buf) {
-		err = io.EOF
-	}
-
-	return
-}
-
-func (r *BufReader) Reset()        { r.R = 0 }
-func (r *BufReader) Len() int      { return r.Buf.Len() - r.R }
-func (r *BufReader) LenF() float64 { return float64(r.Len()) }
-func (r *BufReader) Bytes() []byte { return r.Buf[r.R:] }
+func (w *Buf) Reset()       { *w = (*w)[:0] }
+func (w Buf) Len() int      { return len(w) }
+func (w Buf) LenF() float64 { return float64(w.Len()) }
+func (w Buf) Bytes() []byte { return w }
