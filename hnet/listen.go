@@ -202,6 +202,12 @@ func Stopper(ctx context.Context, dead func(time.Time) error) func() {
 			return
 		}
 
+		select {
+		case <-donec:
+			return
+		default:
+		}
+
 		_ = dead(time.Unix(1, 0))
 	}()
 
