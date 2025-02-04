@@ -1,2 +1,3 @@
 # hacked
-some unexported go stdlib features
+
+little helpers and unexported runtime features
