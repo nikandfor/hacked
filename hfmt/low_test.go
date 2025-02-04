@@ -103,16 +103,6 @@ func BenchmarkFmtFprintf(b *testing.B) {
 	}
 }
 
-func BenchmarkFmtAppendf(b *testing.B) {
-	b.ReportAllocs()
-
-	var buf []byte
-
-	for i := 0; i < b.N; i++ {
-		buf = Appendf(buf[:0], "message %v %v %v", 1, "string", 3.12)
-	}
-}
-
 func (f *testformatter) Format(s fmt.State, verb rune) {
 	f.flags = [64]bool{}
 

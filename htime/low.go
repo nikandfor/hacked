@@ -45,9 +45,6 @@ func absDate(uint64, bool) (year, month, day, yday int)
 //go:linkname mono time.(*Time).mono
 func mono(*time.Time) int64
 
-//go:linkname startTimer time.startTimer
-//func startTimer(*runtimeTimer)
-
 ////go:linkname when time.when
 //func when(time.Duration) int64
 
