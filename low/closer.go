@@ -1,4 +1,4 @@
-package little
+package low
 
 import (
 	"fmt"
