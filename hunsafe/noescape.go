@@ -19,5 +19,5 @@ func NoEscapeSlice[T any](b []T) []T {
 //go:nosplit
 func NoEscape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0) //nolint:staticcheck
+	return unsafe.Pointer(x ^ 0) //nolint:staticcheck,govet
 }

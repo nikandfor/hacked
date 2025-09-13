@@ -46,7 +46,7 @@ func PrintArg(s fmt.State, arg interface{}, verb rune) {
 	buf[i] = byte(verb)
 	i++
 
-	fmt.Fprintf(s, bytesToString(buf[:i]), arg)
+	_, _ = fmt.Fprintf(s, bytesToString(buf[:i]), arg)
 }
 
 //go:linkname printArg fmt.(*pp).printArg
@@ -62,7 +62,7 @@ func printArg(p unsafe.Pointer, arg interface{}, verb rune)
 //go:nosplit
 func noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0) //nolint:staticcheck
+	return unsafe.Pointer(x ^ 0) //nolint:staticcheck,govet
 }
 
 func bytesToString(b []byte) string {

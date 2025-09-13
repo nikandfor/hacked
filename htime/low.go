@@ -44,26 +44,3 @@ func absDate(uint64, bool) (year, month, day, yday int)
 //go:noescape
 //go:linkname mono time.(*Time).mono
 func mono(*time.Time) int64
-
-////go:linkname when time.when
-//func when(time.Duration) int64
-
-//go:linkname runtimeNano runtime.nanotime
-func runtimeNano() int64
-
-// when is a helper function for setting the 'when' field of a runtimeTimer.
-// It returns what the time will be, in nanoseconds, Duration d in the future.
-// If d is negative, it is ignored. If the returned value would be less than
-// zero because of an overflow, MaxInt64 is returned.
-func when(d time.Duration) int64 {
-	if d <= 0 {
-		return runtimeNano()
-	}
-	t := runtimeNano() + int64(d)
-	if t < 0 {
-		// N.B. runtimeNano() and d are always positive, so addition
-		// (including overflow) will never result in t == 0.
-		t = 1<<63 - 1 // math.MaxInt64
-	}
-	return t
-}

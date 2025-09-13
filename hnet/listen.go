@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"sync"
 	"time"
 )
 
@@ -40,6 +41,7 @@ type (
 	}
 )
 
+// Accept wraps l.Accept but aborts the operation on context cancelation.
 func Accept(ctx context.Context, l net.Listener) (net.Conn, error) {
 	d, ok := l.(interface {
 		SetDeadline(time.Time) error
@@ -60,6 +62,7 @@ func Accept(ctx context.Context, l net.Listener) (net.Conn, error) {
 	return nil, err
 }
 
+// Read wraps r.Read but aborts the operation on context cancelation.
 func Read(ctx context.Context, r io.Reader, p []byte) (int, error) {
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
@@ -76,6 +79,7 @@ func Read(ctx context.Context, r io.Reader, p []byte) (int, error) {
 	return n, err
 }
 
+// ReadFrom wraps r.ReadFrom but aborts the operation on context cancelation.
 func ReadFrom(ctx context.Context, r ReaderFrom, p []byte) (int, net.Addr, error) {
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
@@ -92,6 +96,7 @@ func ReadFrom(ctx context.Context, r ReaderFrom, p []byte) (int, net.Addr, error
 	return n, addr, err
 }
 
+// ReadFromUDP wraps r.ReadFromUDP but aborts the operation on context cancelation.
 func ReadFromUDP(ctx context.Context, r ReaderFromUDP, p []byte) (int, *net.UDPAddr, error) {
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
@@ -108,6 +113,7 @@ func ReadFromUDP(ctx context.Context, r ReaderFromUDP, p []byte) (int, *net.UDPA
 	return n, addr, err
 }
 
+// ReadFromUDPAddrPort wraps r.ReadFromUDPAddrPort but aborts the operation on context cancelation.
 func ReadFromUDPAddrPort(ctx context.Context, r ReaderFromUDPAddrPort, p []byte) (int, netip.AddrPort, error) {
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
@@ -124,6 +130,7 @@ func ReadFromUDPAddrPort(ctx context.Context, r ReaderFromUDPAddrPort, p []byte)
 	return n, addr, err
 }
 
+// ReadMsgUDP wraps r.ReadMsgUDP but aborts the operation on context cancelation.
 func ReadMsgUDP(ctx context.Context, r ReaderMsgUDP, p, oob []byte) (n, oobn, flags int, addr *net.UDPAddr, err error) {
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
@@ -140,6 +147,7 @@ func ReadMsgUDP(ctx context.Context, r ReaderMsgUDP, p, oob []byte) (n, oobn, fl
 	return
 }
 
+// ReadMsgUDPAddrPort wraps r.ReadMsgUDPAddrPort but aborts the operation on context cancelation.
 func ReadMsgUDPAddrPort(ctx context.Context, r ReaderMsgUDPAddrPort, p, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
 	d, ok := r.(interface {
 		SetReadDeadline(time.Time) error
@@ -156,6 +164,8 @@ func ReadMsgUDPAddrPort(ctx context.Context, r ReaderMsgUDPAddrPort, p, oob []by
 	return
 }
 
+// NewStoppableListener wraps listener to have the same interface,
+// but returned listener aborts on context cancellation.
 func NewStoppableListener(ctx context.Context, l net.Listener) net.Listener {
 	return StoppableListener{
 		Context:  ctx,
@@ -167,6 +177,8 @@ func (l StoppableListener) Accept() (net.Conn, error) {
 	return Accept(l.Context, l.Listener)
 }
 
+// NewStoppableConn wraps connection to have the same interface,
+// but returned connection aborts on context cancellation.
 func NewStoppableConn(ctx context.Context, c net.Conn) net.Conn {
 	return StoppableConn{
 		Context: ctx,
@@ -192,8 +204,13 @@ func (c StoppableConn) Write(p []byte) (n int, err error) {
 	return
 }
 
+// Stopper is a helper function which calls dead if context is canceled.
+// Returned function must be called with defer to release goroutine used internally.
 func Stopper(ctx context.Context, dead func(time.Time) error) func() {
 	donec := make(chan struct{})
+
+	var mu sync.Mutex
+	var killed bool
 
 	go func() {
 		select {
@@ -202,6 +219,9 @@ func Stopper(ctx context.Context, dead func(time.Time) error) func() {
 			return
 		}
 
+		defer mu.Unlock()
+		mu.Lock()
+
 		select {
 		case <-donec:
 			return
@@ -209,10 +229,18 @@ func Stopper(ctx context.Context, dead func(time.Time) error) func() {
 		}
 
 		_ = dead(time.Unix(1, 0))
+		killed = true
 	}()
 
 	return func() {
 		close(donec)
+
+		defer mu.Unlock()
+		mu.Lock()
+
+		if killed {
+			_ = dead(time.Time{})
+		}
 	}
 }
 
@@ -222,6 +250,9 @@ func isTimeout(err error) bool {
 	return ok && to.Timeout()
 }
 
+// FixError replaces internal error caused by operation abortion
+// and replaces it with one returned by ctx.Err if context was canceled.
+// Otherwise it returns the error unchanged.
 func FixError(ctx context.Context, err error) error {
 	if isTimeout(err) {
 		select {

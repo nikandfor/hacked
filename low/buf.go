@@ -8,6 +8,8 @@ import (
 const Spaces = "                                                                                                                                "
 
 type (
+	// Buf is a buffer that implements a few Writer/Reader interfaces.
+	// Mostly used for tests.
 	Buf []byte
 )
 

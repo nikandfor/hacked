@@ -42,12 +42,12 @@ func (r *BufReader) ReadByte() (byte, error) {
 }
 
 func (r *BufReader) UnreadByte() error {
-	if r.R > 0 {
-		r.R--
-		return nil
+	if r.R == 0 {
+		return fmt.Errorf("unread before the start")
 	}
 
-	return fmt.Errorf("unread before the start")
+	r.R--
+	return nil
 }
 
 func (r *BufReader) ReadRune() (rune, int, error) {
